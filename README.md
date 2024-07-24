@@ -1,2 +1,3 @@
 # sst-sfn
-StepFunctions implementation for SST ION
+
+StepFunctions implementation for SST Ion (and Pulumi)
