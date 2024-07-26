@@ -1,12 +1,16 @@
 import * as aws from "@pulumi/aws";
-import { Chainable, StateBase, StateBaseParams } from "../state";
+import { Chainable, StateBase, StateBaseParams, Retriable } from "../state";
+import { Input } from "@pulumi/pulumi";
 
 export interface MapStateParams extends StateBaseParams {
-  ItemsPath?: string;
+  ItemsPath?: Input<string>;
+  ItemSelector?: Input<object>;
+  MaxConcurrency?: Input<number>;
+  MaxConcurrencyPath?: Input<string>;
   Iterator: Chainable; // Iterator must be a state machine definition
 }
 
-export class Map extends StateBase {
+export class Map extends StateBase implements Retriable {
   constructor(
     public name: string,
     protected params: MapStateParams
@@ -23,8 +27,8 @@ export class Map extends StateBase {
     };
   }
 
-  createPermissions(role: aws.iam.Role) {
-    super.createPermissions(role);
-    this.params.Iterator.createPermissions(role);
+  createPermissions(role: aws.iam.Role, prefix: string) {
+    super.createPermissions(role, prefix);
+    this.params.Iterator.createPermissions(role, prefix);
   }
 }

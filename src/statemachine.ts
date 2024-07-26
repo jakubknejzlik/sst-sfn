@@ -52,7 +52,21 @@ export class StateMachine extends Component implements Link.Linkable {
     createPermissions();
 
     function createPermissions() {
-      args.definition.createPermissions(role);
+      new aws.iam.RolePolicy(`${name}SfnRolePolicy`, {
+        role: role.id,
+        policy: {
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Effect: "Allow",
+              Action: ["events:*"],
+              // arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForStepFunctionsExecutionRule
+              Resource: "*",
+            },
+          ],
+        },
+      });
+      args.definition.createPermissions(role, name);
     }
     function createStateMachine() {
       return new sfn.StateMachine(

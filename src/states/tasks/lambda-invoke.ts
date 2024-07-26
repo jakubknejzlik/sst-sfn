@@ -1,5 +1,5 @@
 import { Input } from "@pulumi/pulumi";
-import { TaskStateBase } from "./task-base";
+import { TaskStateBase, TaskStateBaseParams } from "./task-base";
 
 type LambdaInvokeTaskParameters = {
   FunctionName: Input<string>;
@@ -9,16 +9,16 @@ type LambdaInvokeTaskParameters = {
 export class LambdaInvoke extends TaskStateBase<LambdaInvokeTaskParameters> {
   constructor(
     public name: string,
-    params: LambdaInvokeTaskParameters
+    params: Omit<TaskStateBaseParams<LambdaInvokeTaskParameters>, "Resource">
   ) {
     super(name, {
       Resource: "arn:aws:states:::lambda:invoke",
-      Parameters: params,
+      ...params,
     });
   }
 
-  private createRolePolicy(role: aws.iam.Role) {
-    return new aws.iam.RolePolicy(`${this.name}SfnRolePolicy`, {
+  private createRolePolicy(role: aws.iam.Role, prefix: string) {
+    new aws.iam.RolePolicy(`${prefix}${this.name}SfnRolePolicy`, {
       role: role.id,
       policy: {
         Version: "2012-10-17",
@@ -35,9 +35,9 @@ export class LambdaInvoke extends TaskStateBase<LambdaInvokeTaskParameters> {
     });
   }
 
-  createPermissions(role: aws.iam.Role) {
-    super.createPermissions(role);
-    this.createRolePolicy(role);
+  createPermissions(role: aws.iam.Role, prefix: string) {
+    super.createPermissions(role, prefix);
+    this.createRolePolicy(role, prefix);
   }
 
   toJSON() {
