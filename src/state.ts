@@ -11,14 +11,40 @@ export interface Chainable {
   serializeToDefinition: () => object;
 }
 
+function isChainable(obj: unknown): obj is Chainable {
+  return (
+    typeof obj === "object" && obj !== null && "name" in obj && "next" in obj
+  );
+}
+
+export enum TaskState {
+  ALL = "States.ALL",
+}
+
+type ErrorEqual = TaskState | string;
+
 type RetryProps = {
-  ErrorEquals: string[];
+  ErrorEquals: ErrorEqual[];
   IntervalSeconds?: number;
   MaxAttempts?: number;
   BackoffRate?: number;
 };
+const defaultRetry: RetryProps = {
+  ErrorEquals: [TaskState.ALL],
+  BackoffRate: 2,
+  IntervalSeconds: 1,
+  MaxAttempts: 3,
+};
 export interface Retriable {
   addRetry: (retry?: RetryProps) => Chainable;
+}
+
+type CatchProps = {
+  ErrorEquals: ErrorEqual[];
+  Next: Chainable;
+};
+export interface Catchable {
+  addCatch: (c?: CatchProps) => Chainable;
 }
 
 export interface StateBaseParams {
@@ -33,17 +59,19 @@ export class StateBase implements Chainable {
   public _prev?: Chainable;
   public _nextName?: string;
   protected _retries?: RetryProps[];
+  protected _catches?: CatchProps[];
 
-  addRetry(
-    retry: RetryProps = {
-      ErrorEquals: ["States.ALL"],
-      BackoffRate: 2,
-      IntervalSeconds: 1,
-      MaxAttempts: 3,
-    }
-  ) {
+  addRetry(retry?: Partial<RetryProps>) {
     this._retries = this._retries || [];
-    this._retries.push(retry);
+    this._retries.push({ ...defaultRetry, ...retry });
+    return this;
+  }
+
+  addCatch(c: CatchProps | Chainable) {
+    this._catches = this._catches || [];
+    this._catches.push(
+      isChainable(c) ? { ErrorEquals: [TaskState.ALL], Next: c } : c
+    );
     return this;
   }
 
@@ -59,10 +87,14 @@ export class StateBase implements Chainable {
   }
 
   serialize() {
-    return {
+    const obj: Record<string, unknown> = {
       ...this._prev?.serialize(),
       [this.name]: this.toJSON(),
     };
+    for (const c of this._catches || []) {
+      obj[c.Next.name] = c.Next.toJSON();
+    }
+    return obj;
   }
 
   firstNode(): Chainable {
@@ -86,10 +118,15 @@ export class StateBase implements Chainable {
     return {
       ...(this._nextName ? { Next: this._nextName } : { End: true }),
       Retry: this._retries,
+      Catch: this._catches?.map((c) => ({
+        ErrorEquals: c.ErrorEquals,
+        Next: c.Next.name,
+      })),
     };
   }
 
   public createPermissions(role: aws.iam.Role, prefix: string) {
     this._prev?.createPermissions(role, prefix);
+    this._catches?.forEach((c) => c.Next.createPermissions(role, prefix));
   }
 }

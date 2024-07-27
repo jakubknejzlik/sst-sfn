@@ -2,6 +2,7 @@ import { Input } from "@pulumi/pulumi";
 import { StateBase, StateBaseParams } from "../state";
 
 export interface PassParams extends StateBaseParams {
+  Result?: Input<Record<string, unknown>>;
   Parameters?: Input<Record<string, unknown>>;
 }
 export class Pass extends StateBase {
