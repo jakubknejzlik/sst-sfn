@@ -110,7 +110,10 @@ export class StateMachine extends Component implements Link.Linkable {
       include: [
         permission({
           actions: ["states:*"],
-          resources: [this.stateMachine.arn],
+          resources: [
+            this.stateMachine.arn,
+            $interpolate`${this.stateMachine.arn.apply((arn) => arn.replace("stateMachine", "execution"))}:*`,
+          ],
         }),
       ],
     };
