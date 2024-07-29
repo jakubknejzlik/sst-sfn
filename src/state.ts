@@ -1,16 +1,19 @@
-import { Input } from "@pulumi/pulumi";
-
 export interface Chainable {
   name: string;
   _prev?: Chainable;
   next: (state: Chainable) => Chainable;
-  toJSON: () => any;
-  serialize: () => any;
+  toJSON: () => object;
+  serialize: () => object;
   createPermissions: (role: aws.iam.Role) => void;
+  firstNode: () => Chainable;
+  serializeToDefinition: () => object;
 }
 
 export interface StateBaseParams {
   ResultPath?: string;
+  OutputPath?: string;
+  Comment?: string;
+  InputPath?: string;
 }
 
 export class StateBase implements Chainable {
@@ -35,12 +38,30 @@ export class StateBase implements Chainable {
     };
   }
 
+  firstNode(): Chainable {
+    if (this._prev) {
+      return this._prev.firstNode();
+    }
+    return this;
+  }
+
+  serializeToDefinition() {
+    return {
+      StartAt: this.firstNode().name,
+      States: {
+        ...this._prev?.serialize(),
+        [this.name]: this.toJSON(),
+      },
+    };
+  }
+
   toJSON() {
     return {
       ...(this._nextName ? { Next: this._nextName } : { End: true }),
     };
   }
+
   public createPermissions(role: aws.iam.Role) {
-    // noop
+    this._prev?.createPermissions(role);
   }
 }

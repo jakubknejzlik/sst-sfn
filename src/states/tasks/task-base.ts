@@ -1,16 +1,19 @@
 import { Input } from "@pulumi/pulumi";
-import { StateBase, StateBaseParams } from "../state";
+import { StateBase, StateBaseParams } from "../../state";
 
-export interface TaskStateBaseParams extends StateBaseParams {
-  Resource?: Input<string>;
+export interface TaskStateBaseParams<TP> extends StateBaseParams {
+  Resource: Input<string>;
+  Parameters: TP;
 }
-export class TaskStateBase extends StateBase {
+
+export class TaskStateBase<TP> extends StateBase {
   constructor(
     public name: string,
-    protected params: TaskStateBaseParams = {}
+    protected params: TaskStateBaseParams<TP>
   ) {
     super(name, params);
   }
+
   toJSON() {
     return {
       ...super.toJSON(),
@@ -18,6 +21,7 @@ export class TaskStateBase extends StateBase {
       ...this.params,
     };
   }
+
   createPermissions(role: aws.iam.Role) {
     super.createPermissions(role);
   }
