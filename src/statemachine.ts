@@ -5,7 +5,7 @@ import {
   transform,
 } from ".sst/platform/src/components/component";
 import { Link } from ".sst/platform/src/components/link";
-import { prefixName } from ".sst/platform/src/components/naming";
+import { physicalName } from ".sst/platform/src/components/naming";
 import { sfn } from "@pulumi/aws";
 import { StateMachineArgs } from "@pulumi/aws/sfn";
 import { ComponentResourceOptions, output, Output } from "@pulumi/pulumi";
@@ -74,7 +74,7 @@ export class StateMachine extends Component implements Link.Linkable {
           args.transform?.stateMachine,
           `${name}StateMachine`,
           {
-            name: prefixName(256, name),
+            name: physicalName(256, name),
             definition: $jsonStringify(args.definition.serializeToDefinition()),
             roleArn: role.arn,
           },
