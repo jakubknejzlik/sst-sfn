@@ -6,13 +6,16 @@ type LambdaInvokeTaskParameters = {
   Payload?: Record<string, Input<unknown>>;
 };
 
+type Parameters = Omit<
+  TaskStateBaseParams<LambdaInvokeTaskParameters>,
+  "Resource"
+> &
+  Partial<Pick<TaskStateBaseParams<LambdaInvokeTaskParameters>, "Resource">>;
+
 export class LambdaInvoke extends TaskStateBase<LambdaInvokeTaskParameters> {
-  constructor(
-    public name: string,
-    params: Omit<TaskStateBaseParams<LambdaInvokeTaskParameters>, "Resource">
-  ) {
+  constructor(public name: string, params: Parameters) {
     super(name, {
-      Resource: "arn:aws:states:::lambda:invoke",
+      Resource: `arn:aws:states:::lambda:invoke`,
       ...params,
     });
   }

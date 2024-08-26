@@ -1,5 +1,9 @@
 {
+  "name": "@jakub.knejzlik/sst-sfn",
   "devDependencies": {
-    "aws-cdk-lib": "^2.150.0"
+    "@aws-sdk/client-sfn": "^3.637.0",
+    "@pulumi/aws": "^6.50.1",
+    "aws-cdk-lib": "^2.150.0",
+    "zod": "^3.23.8"
   }
 }

@@ -4,11 +4,12 @@ StepFunctions implementation for SST Ion (and Pulumi)
 
 # Example
 
-```
-import { $, $$, LambdaInvoke, Map, StartExecutionSync, StateMachine } from "path/to/sst-sfn";
+```typescript
+import { $, $$, LambdaInvoke, LambdaInvokeWaitForTaskToken, Map, StartExecutionSync, StateMachine } from "path/to/sst-sfn";
 
 const search = new sst.aws.Function("GoogleSearch", {...})
 const exportZip = new sst.aws.Function("ExportZip", {...})
+const tokenExample = new sst.aws.Function("TokenExample", {...})
 
 export const fetchDetailStateMachine = new StateMachine("MyStateMachine", {...});
 
@@ -46,9 +47,44 @@ const definition = new LambdaInvoke("Search", {
         },
         ResultPath: $.stringAt("$.archive"),
       })
+    ).next(
+      new LambdaInvokeWaitForTaskToken("TokenExample", {
+        Parameters: {
+          FunctionName: tokenExample.arn,
+          Payload: {
+            "taskToken.$": $$.Task.Token
+          },
+        },
+        ResultPath: $.DISCARD,
+      })
     )
 
 export const searchStateMachine = new StateMachine("MyStateMachine", {
   definition
 });
+```
+
+## API Gateway V2 helpers
+
+Set of convenience methods to help with 3rd party integration using API Gateway V2
+
+```typescript
+export const maApi = new sst.aws.ApiGatewayV2("MyApi");
+
+export const myStateMachine = new StateMachine("MyStateMachine", {
+  definition: //
+});
+
+// trigger new state machine using POST request
+// curl '.../my-trigger' --data '{"hello":"world"}' => body is passed to state machine as input
+myStateMachine.addApiGatewayV2Trigger("POST /my-trigger", maApi);
+
+// send success command using taskToken
+// curl '.../my-success' --data '{"taskToken":"[TOKEN]","output":{"foo":"blah"}}'
+myStateMachine.addApiGatewayV2TaskCommandSuccessHandler("POST /my-success", maApi);
+
+// send failure command using taskToken
+// curl '.../my-success' --data '{"taskToken":"[TOKEN]","error":"XYZ","cause":"somthing is broken"}'
+myStateMachine.addApiGatewayV2TaskCommandFailureHandler("POST /failure", maApi);
+
 ```

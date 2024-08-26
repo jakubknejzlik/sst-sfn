@@ -1,3 +1,5 @@
+import { ApiGatewayV2, CronArgs } from ".sst/platform/src/components/aws";
+import { ApiGatewayV2LambdaRoute } from ".sst/platform/src/components/aws/apigatewayv2-lambda-route";
 import { permission } from ".sst/platform/src/components/aws/permission";
 import {
   Component,
@@ -34,8 +36,6 @@ export class StateMachine extends Component implements Link.Linkable {
   constructor(name: string, args: SFNArgs, opts?: ComponentResourceOptions) {
     super(__pulumiType, name, args, opts);
 
-    // const parent = this;
-
     const role = args.roleArn
       ? aws.iam.Role.get(
           `${$app.name}-${$app.stage}-${name}SfnRole`,
@@ -60,7 +60,6 @@ export class StateMachine extends Component implements Link.Linkable {
             {
               Effect: "Allow",
               Action: ["events:*"],
-              // arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForStepFunctionsExecutionRule
               Resource: "*",
             },
           ],
@@ -68,6 +67,7 @@ export class StateMachine extends Component implements Link.Linkable {
       });
       args.definition.createPermissions(role, name);
     }
+
     function createStateMachine() {
       return new sfn.StateMachine(
         ...transform(
@@ -86,6 +86,27 @@ export class StateMachine extends Component implements Link.Linkable {
     }
   }
 
+  /** @internal */
+  public getSSTLink() {
+    return {
+      properties: {
+        id: this.id,
+        arn: this.arn,
+      },
+      include: [
+        permission({
+          actions: ["states:*"],
+          resources: [
+            this.stateMachine.arn,
+            $interpolate`${this.stateMachine.arn.apply((arn) =>
+              arn.replace("stateMachine", "execution")
+            )}:*`,
+          ],
+        }),
+      ],
+    };
+  }
+
   /**
    * The State Machine ID.
    */
@@ -100,23 +121,64 @@ export class StateMachine extends Component implements Link.Linkable {
     return this.stateMachine.arn;
   }
 
-  /** @internal */
-  public getSSTLink() {
-    return {
-      properties: {
-        id: this.id,
-        arn: this.arn,
+  public addCronTrigger(
+    name: string,
+    schedule: CronArgs["schedule"],
+    input?: Record<string, unknown>
+  ): sst.aws.Cron {
+    return new sst.aws.Cron(name, {
+      schedule,
+      job: {
+        // TODO: handler path should be relative to the root of the project
+        // handler: join(__dirname, "./functions/trigger.handler"),
+        handler: "packages/sst-sfn/src/functions/trigger.handler",
+        link: [this],
       },
-      include: [
-        permission({
-          actions: ["states:*"],
-          resources: [
-            this.stateMachine.arn,
-            $interpolate`${this.stateMachine.arn.apply((arn) => arn.replace("stateMachine", "execution"))}:*`,
-          ],
-        }),
-      ],
-    };
+      transform: {
+        target: {
+          input: $jsonStringify({ stateMachineArn: this.arn, input }),
+        },
+      },
+    });
+  }
+
+  public addApiGatewayV2Trigger(
+    rawRoute: string,
+    api: ApiGatewayV2
+  ): ApiGatewayV2LambdaRoute {
+    return api.route(rawRoute, {
+      // TODO: handler path should be relative to the root of the project
+      handler: "packages/sst-sfn/src/functions/api-trigger.handler",
+      environment: {
+        SFN_STATE_MACHINE: this.arn,
+      },
+      link: [this],
+    });
+  }
+
+  public addApiGatewayV2TaskCommandSuccessHandler(
+    rawRoute: string,
+    api: ApiGatewayV2
+  ): ApiGatewayV2LambdaRoute {
+    return this.addApiGatewayV2TaskCommandHandler("success", rawRoute, api);
+  }
+  public addApiGatewayV2TaskCommandFailureHandler(
+    rawRoute: string,
+    api: ApiGatewayV2
+  ): ApiGatewayV2LambdaRoute {
+    return this.addApiGatewayV2TaskCommandHandler("failure", rawRoute, api);
+  }
+  protected addApiGatewayV2TaskCommandHandler(
+    command: "success" | "failure",
+    rawRoute: string,
+    api: ApiGatewayV2
+  ): ApiGatewayV2LambdaRoute {
+    return api.route(rawRoute, {
+      // TODO: handler path should be relative to the root of the project
+      handler: `packages/sst-sfn/src/functions/api-send-task-${command}.handler`,
+      memory: "128 MB",
+      link: [this],
+    });
   }
 }
 
