@@ -92,6 +92,7 @@ export class StateMachine extends Component implements Link.Linkable {
       properties: {
         id: this.id,
         arn: this.arn,
+        roleArn: this.roleArn
       },
       include: [
         permission({
@@ -119,6 +120,13 @@ export class StateMachine extends Component implements Link.Linkable {
    */
   public get arn() {
     return this.stateMachine.arn;
+  }
+
+  /**
+   * The State Machine Role ARN.
+   */
+  public get roleArn() {
+    return this.stateMachine.roleArn;
   }
 
   public addCronTrigger(
