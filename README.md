@@ -2,6 +2,10 @@
 
 StepFunctions implementation for SST Ion (and Pulumi)
 
+## Important!
+
+For now this package contains copy of SST platform scripts (https://github.com/sst/sst/issues/4643)
+
 # Example
 
 ```typescript
