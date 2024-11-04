@@ -1,13 +1,13 @@
-import { ApiGatewayV2, CronArgs } from ".sst/platform/src/components/aws";
-import { ApiGatewayV2LambdaRoute } from ".sst/platform/src/components/aws/apigatewayv2-lambda-route";
-import { permission } from ".sst/platform/src/components/aws/permission";
+import { ApiGatewayV2, CronArgs } from "./.sst/platform/src/components/aws";
+import { ApiGatewayV2LambdaRoute } from "./.sst/platform/src/components/aws/apigatewayv2-lambda-route";
+import { permission } from "./.sst/platform/src/components/aws/permission";
 import {
   Component,
   Transform,
   transform,
-} from ".sst/platform/src/components/component";
-import { Link } from ".sst/platform/src/components/link";
-import { physicalName } from ".sst/platform/src/components/naming";
+} from "./.sst/platform/src/components/component";
+import { Link } from "./.sst/platform/src/components/link";
+import { physicalName } from "./.sst/platform/src/components/naming";
 
 import { sfn } from "@pulumi/aws";
 import { StateMachineArgs } from "@pulumi/aws/sfn";
