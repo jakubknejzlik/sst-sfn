@@ -32,9 +32,14 @@ type SFNArgs = Partial<Omit<StateMachineArgs, "definition">> & {
 
 export class StateMachine extends Component implements Link.Linkable {
   private stateMachine: Output<sfn.StateMachine>;
+  private startExecutionRole?: aws.iam.Role;
   static __pulumiType: string;
 
-  constructor(name: string, args: SFNArgs, opts?: ComponentResourceOptions) {
+  constructor(
+    private name: string,
+    args: SFNArgs,
+    opts?: ComponentResourceOptions
+  ) {
     super(__pulumiType, name, args, opts);
 
     const role = args.roleArn
@@ -122,25 +127,62 @@ export class StateMachine extends Component implements Link.Linkable {
     return this.stateMachine.arn;
   }
 
+  getStartExecutionRole(): aws.iam.Role {
+    if (this.startExecutionRole) {
+      return this.startExecutionRole;
+    }
+    const roleName = `${$app.name}-${$app.stage}-${this.name}-StartExecutionRole`;
+    const policyName = `${$app.name}-${$app.stage}-${this.name}-StartExecutionRolePolicy`;
+    this.startExecutionRole = new aws.iam.Role(roleName, {
+      name: roleName,
+      assumeRolePolicy: JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Action: "sts:AssumeRole",
+            Effect: "Allow",
+            Sid: "",
+            Principal: {
+              Service: "events.amazonaws.com",
+            },
+          },
+        ],
+      }),
+    });
+    new aws.iam.RolePolicy(policyName, {
+      name: policyName,
+      role: this.startExecutionRole.id,
+      policy: $jsonStringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Action: ["states:StartExecution"],
+            Effect: "Allow",
+            Resource: this.stateMachine.arn,
+          },
+        ],
+      }),
+    });
+    return this.startExecutionRole;
+  }
+
   public addCronTrigger(
     name: string,
     schedule: CronArgs["schedule"],
     input?: Record<string, unknown>
-  ): sst.aws.Cron {
-    return new sst.aws.Cron(name, {
-      schedule,
-      job: {
-        // TODO: handler path should be relative to the root of the project
-        // handler: join(__dirname, "./functions/trigger.handler"),
-        handler: "packages/sst-sfn/src/functions/trigger.handler",
-        link: [this],
-      },
-      transform: {
-        target: {
-          input: $jsonStringify({ stateMachineArn: this.arn, input }),
-        },
-      },
+  ): aws.cloudwatch.EventRule {
+    const rule = new aws.cloudwatch.EventRule(name, {
+      name: `${$app.name}-${$app.stage}-${name}`,
+      description: $interpolate`Cron trigger for State Machine ${this.stateMachine.name}`,
+      scheduleExpression: schedule,
     });
+    new aws.cloudwatch.EventTarget(name, {
+      rule: rule.name,
+      arn: this.stateMachine.arn,
+      roleArn: this.getStartExecutionRole().arn,
+      input: $jsonStringify(input),
+    });
+    return rule;
   }
 
   public addApiGatewayV2Trigger(
