@@ -1,4 +1,8 @@
-import { ApiGatewayV2, CronArgs } from "./.sst/platform/src/components/aws";
+import {
+  ApiGatewayV2,
+  ApiGatewayV2RouteArgs,
+  CronArgs,
+} from "./.sst/platform/src/components/aws";
 import { ApiGatewayV2LambdaRoute } from "./.sst/platform/src/components/aws/apigatewayv2-lambda-route";
 import { permission } from "./.sst/platform/src/components/aws/permission";
 import {
@@ -146,6 +150,14 @@ export class StateMachine extends Component implements Link.Linkable {
               Service: "events.amazonaws.com",
             },
           },
+          {
+            Action: "sts:AssumeRole",
+            Effect: "Allow",
+            Sid: "",
+            Principal: {
+              Service: "apigateway.amazonaws.com",
+            },
+          },
         ],
       }),
     });
@@ -187,15 +199,37 @@ export class StateMachine extends Component implements Link.Linkable {
 
   public addApiGatewayV2Trigger(
     rawRoute: string,
-    api: ApiGatewayV2
-  ): ApiGatewayV2LambdaRoute {
-    return api.route(rawRoute, {
-      // TODO: handler path should be relative to the root of the project
-      handler: "packages/sst-sfn/src/functions/api-trigger.handler",
-      environment: {
-        SFN_STATE_MACHINE: this.arn,
+    api: ApiGatewayV2,
+    routeArgs: ApiGatewayV2RouteArgs = {}
+  ) {
+    const apiId = api.url.apply((url) => {
+      const match = url.match(/https:\/\/(\w+)\.execute-api.*/);
+      return match?.[1] ?? "";
+    });
+
+    const { transform, ...restRouteArgs } = routeArgs;
+    const { integration, ...restTransformArgs } = transform ?? {};
+
+    api.route(rawRoute, "dummy.handler", {
+      transform: {
+        integration: {
+          apiId: apiId,
+          description: "Send event to EventProcessor",
+          integrationType: "AWS_PROXY",
+          integrationSubtype: "StepFunctions-StartExecution",
+          payloadFormatVersion: "1.0",
+          integrationUri: undefined, // has to be undefined for AWS_PROXY
+          credentialsArn: this.getStartExecutionRole().arn,
+          timeoutMilliseconds: 5000,
+          requestParameters: {
+            StateMachineArn: this.stateMachine.arn,
+            Input: "$request.body",
+          },
+          ...integration,
+        },
+        ...restTransformArgs,
       },
-      link: [this],
+      ...restRouteArgs,
     });
   }
 
