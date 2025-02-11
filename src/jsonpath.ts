@@ -9,6 +9,7 @@ export const $ = {
 export const $$ = {
   Execution: {
     Id: "$$.Execution.Id",
+    StartTime: "$$.Execution.StartTime",
   },
   Task: {
     Token: "$$.Task.Token",
