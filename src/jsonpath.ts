@@ -4,6 +4,9 @@ export const $ = {
   format(format: string, ...args: string[]) {
     return `States.Format('${format}', ${args.join(", ")})`;
   },
+  jsonToString(key: string) {
+    return `States.JsonToString(${key})`;
+  },
 };
 
 export const $$ = {

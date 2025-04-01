@@ -108,8 +108,7 @@ export class StateBase implements Chainable {
     return {
       StartAt: this.firstNode().name,
       States: {
-        ...this._prev?.serialize(),
-        [this.name]: this.toJSON(),
+        ...this.serialize(),
       },
     };
   }

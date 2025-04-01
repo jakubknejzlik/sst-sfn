@@ -6,4 +6,5 @@ export * from "./src/states/tasks/start-execution-state";
 export * from "./src/states/tasks/start-execution-sync-state";
 export * from "./src/states/pass";
 export * from "./src/states/map";
+export * from "./src/states/choice";
 export { $, $$ } from "./src/jsonpath";
