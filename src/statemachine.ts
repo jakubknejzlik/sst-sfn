@@ -13,7 +13,8 @@ import {
 import { Link } from "./.sst/platform/src/components/link";
 import { physicalName } from "./.sst/platform/src/components/naming";
 
-import { sfn } from "@pulumi/aws";
+import aws, { sfn } from "@pulumi/aws";
+import { EventRuleArgs } from "@pulumi/aws/cloudwatch";
 import { StateMachineArgs } from "@pulumi/aws/sfn";
 import { ComponentResourceOptions, output, Output } from "@pulumi/pulumi";
 import { Chainable } from "./state";
@@ -193,6 +194,23 @@ export class StateMachine extends Component implements Link.Linkable {
       arn: this.stateMachine.arn,
       roleArn: this.getStartExecutionRole().arn,
       input: $jsonStringify(input),
+    });
+    return rule;
+  }
+
+  public addEventBridgeTrigger(
+    name: string,
+    eventPattern: EventRuleArgs["eventPattern"]
+  ): aws.cloudwatch.EventRule {
+    const rule = new aws.cloudwatch.EventRule(name, {
+      name: `${$app.name}-${$app.stage}-${name}`,
+      description: $interpolate`Event trigger for State Machine ${this.stateMachine.name}`,
+      eventPattern,
+    });
+    new aws.cloudwatch.EventTarget(name, {
+      rule: rule.name,
+      arn: this.stateMachine.arn,
+      roleArn: this.getStartExecutionRole().arn,
     });
     return rule;
   }
